@@ -22,7 +22,78 @@ if 'user' not in st.session_state:
 # ==========================================
 # 模块 1：登录与注册页面
 # ==========================================
+# ==========================================
+# 模块 1：登录与注册页面 (升级版)
+# ==========================================
 def login_page():
+    # 居中显示标题
+    st.markdown("<h1 style='text-align: center;'>🔐 欢迎来到专属科研空间</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: gray;'>请先登录或注册您的账号</p>", unsafe_allow_html=True)
+    st.write("") # 占位空行
+    
+    # 居中布局设置 (利用列来实现)
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col2:
+        tab1, tab2 = st.tabs(["🔑 登录", "✨ 注册"])
+        
+        # --- 登录模块 ---
+        with tab1:
+            with st.form("login_form"):
+                email = st.text_input("邮箱", placeholder="输入您的邮箱")
+                password = st.text_input("密码", type="password", placeholder="输入您的密码")
+                submit_login = st.form_submit_button("立即登录", use_container_width=True)
+                
+                if submit_login:
+                    if not email or not password:
+                        st.warning("邮箱和密码都要填哦！")
+                    else:
+                        try:
+                            # 尝试登录
+                            response = supabase.auth.sign_in_with_password({"email": email, "password": password})
+                            st.session_state.user = response.user
+                            st.rerun() # 登录成功直接刷新页面进入主空间
+                        except Exception as e:
+                            err_msg = str(e)
+                            # 捕捉具体的错误类型给出友好提示
+                            if "Email not confirmed" in err_msg:
+                                st.error("⚠️ 登录失败：邮箱未确认。\n请检查 Supabase 后台 Authentication -> Providers -> Email 中的 'Confirm email' 是否真的处于关闭状态并保存了！")
+                            elif "Invalid login credentials" in err_msg:
+                                st.error("❌ 登录失败：邮箱或密码不正确，请重新核对一下哦。")
+                            else:
+                                st.error(f"登录遇到未知问题：{err_msg}")
+
+        # --- 注册模块 ---
+        with tab2:
+            with st.form("register_form"):
+                new_email = st.text_input("邮箱", placeholder="输入常用邮箱")
+                new_password = st.text_input("密码", type="password", placeholder="至少需要6位字符哦")
+                submit_reg = st.form_submit_button("注册并进入空间", use_container_width=True)
+                
+                if submit_reg:
+                    if not new_email or len(new_password) < 6:
+                        st.warning("请填写邮箱，且密码至少需要6位哦！")
+                    else:
+                        try:
+                            # 尝试注册
+                            response = supabase.auth.sign_up({"email": new_email, "password": new_password})
+                            
+                            # 核心破解法：判断是否触发了 Supabase 的“防枚举保护”(已有账号但假装注册成功)
+                            if response.user and getattr(response.user, 'identities', None) is not None and len(response.user.identities) == 0:
+                                st.warning("👀 哎呀，这个邮箱已经注册过啦！请直接点击左侧的「登录」标签页登录哦。")
+                            else:
+                                st.success("🎉 注册成功！正在为您自动跳转...")
+                                st.session_state.user = response.user
+                                st.rerun() # 注册成功直接带状态进入主空间
+                                
+                        except Exception as e:
+                            err_msg = str(e)
+                            if "already registered" in err_msg or "already exists" in err_msg:
+                                st.warning("👀 哎呀，这个邮箱已经注册过啦！请直接点击左侧的「登录」标签页登录哦。")
+                            else:
+                                st.error(f"注册遇到问题：{err_msg}")
+
+                                
     st.title("🔐 欢迎来到专属科研空间")
     st.markdown("请先登录或注册您的账号。")
     
