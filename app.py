@@ -21,8 +21,9 @@ if 'user' not in st.session_state:
 
 # ==========================================
 # 模块 1：登录与注册页面
-# ==========================================
-# ==========================================
+
+
+    # ==========================================
 # 模块 1：登录与注册页面 (升级版)
 # ==========================================
 def login_page():
@@ -92,39 +93,6 @@ def login_page():
                                 st.warning("👀 哎呀，这个邮箱已经注册过啦！请直接点击左侧的「登录」标签页登录哦。")
                             else:
                                 st.error(f"注册遇到问题：{err_msg}")
-
-                                
-    st.title("🔐 欢迎来到专属科研空间")
-    st.markdown("请先登录或注册您的账号。")
-    
-    # 用标签页区分登录和注册
-    tab1, tab2 = st.tabs(["登录", "注册"])
-    
-    with tab1:
-        st.subheader("账号登录")
-        email = st.text_input("邮箱", key="login_email")
-        password = st.text_input("密码", type="password", key="login_password")
-        if st.button("登录"):
-            try:
-                # 调用 Supabase 的登录接口
-                response = supabase.auth.sign_in_with_password({"email": email, "password": password})
-                st.session_state.user = response.user
-                st.success("登录成功！")
-                st.rerun()
-            except Exception as e:
-                st.error(f"登录失败，请检查账号密码。")
-
-    with tab2:
-        st.subheader("新账号注册")
-        new_email = st.text_input("邮箱", key="reg_email")
-        new_password = st.text_input("密码 (至少6位)", type="password", key="reg_password")
-        if st.button("注册"):
-            try:
-                # 调用 Supabase 的注册接口
-                response = supabase.auth.sign_up({"email": new_email, "password": new_password})
-                st.success("注册成功！请切换到登录页面进行登录。")
-            except Exception as e:
-                st.error(f"注册失败：{e}")
 
 # ==========================================
 # 模块 2：主界面（科研日志空间）
