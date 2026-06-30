@@ -65,34 +65,31 @@ def login_page():
                                 st.error(f"登录遇到未知问题：{err_msg}")
 
         # --- 注册模块 ---
-        with tab2:
-            with st.form("register_form"):
-                new_email = st.text_input("邮箱", placeholder="输入常用邮箱")
-                new_password = st.text_input("密码", type="password", placeholder="至少需要6位字符哦")
-                submit_reg = st.form_submit_button("注册并进入空间", use_container_width=True)
-                
-                if submit_reg:
-                    if not new_email or len(new_password) < 6:
-                        st.warning("请填写邮箱，且密码至少需要6位哦！")
-                    else:
-                        try:
-                            # 尝试注册
-                            response = supabase.auth.sign_up({"email": new_email, "password": new_password})
-                            
-                            # 核心破解法：判断是否触发了 Supabase 的“防枚举保护”(已有账号但假装注册成功)
-                            if response.user and getattr(response.user, 'identities', None) is not None and len(response.user.identities) == 0:
-                                st.warning("👀 哎呀，这个邮箱已经注册过啦！请直接点击左侧的「登录」标签页登录哦。")
+                with tab2:
+                    with st.form("register_form"):
+                        new_email = st.text_input("邮箱", placeholder="输入常用邮箱")
+                        new_password = st.text_input("密码", type="password", placeholder="至少需要6位字符哦")
+                        submit_reg = st.form_submit_button("注册并发送验证邮件", use_container_width=True)
+                        
+                        if submit_reg:
+                            if not new_email or len(new_password) < 6:
+                                st.warning("请填写邮箱，且密码至少需要6位哦！")
                             else:
-                                st.success("🎉 注册成功！正在为您自动跳转...")
-                                st.session_state.user = response.user
-                                st.rerun() # 注册成功直接带状态进入主空间
-                                
-                        except Exception as e:
-                            err_msg = str(e)
-                            if "already registered" in err_msg or "already exists" in err_msg:
-                                st.warning("👀 哎呀，这个邮箱已经注册过啦！请直接点击左侧的「登录」标签页登录哦。")
-                            else:
-                                st.error(f"注册遇到问题：{err_msg}")
+                                try:
+                                    # 尝试注册，Supabase 会自动发送真实邮件
+                                    response = supabase.auth.sign_up({"email": new_email, "password": new_password})
+                                    
+                                    st.success("🎉 注册成功！我们已经向您的邮箱发送了一封验证邮件。")
+                                    st.info("👉 请前往邮箱点击验证链接，激活账号后再回到这里的「登录」页面进行登录。")
+                                        
+                                except Exception as e:
+                                    err_msg = str(e)
+                                    if "rate limit" in err_msg.lower():
+                                        st.error("🛑 操作太频繁啦！触发了防机器人保护，请稍等一会儿再试。")
+                                    elif "already registered" in err_msg or "already exists" in err_msg:
+                                        st.warning("👀 哎呀，这个邮箱已经注册过啦！请直接去登录吧。")
+                                    else:
+                                        st.error(f"注册遇到问题：{err_msg}")
 
 # ==========================================
 # 模块 2：主界面（科研日志空间）
