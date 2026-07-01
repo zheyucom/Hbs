@@ -106,9 +106,18 @@ def main_page():
 
     if search_keyword and total_logs > 0:
         st.sidebar.markdown("### 🎯 搜索结果导航")
-        nav_col1, nav_col2, nav_col3 = st.sidebar.columns([1, 1.2, 1])
         
-        # 导航按钮回调逻辑
+        # --- 新增：计算关键字一共出现了多少次 ---
+        total_hits = 0
+        for _, row in filtered_df.iterrows():
+            text_to_search = (str(row['progress']) if pd.notna(row['progress']) else "") + " " + (str(row['code_or_params']) if pd.notna(row['code_or_params']) else "")
+            total_hits += len(re.findall(re.escape(search_keyword), text_to_search, re.IGNORECASE))
+        
+        st.sidebar.caption(f"💡 在 **{total_logs} 篇**日志中，共找到 **{total_hits} 个**匹配项")
+        # ----------------------------------------
+        
+        nav_col1, nav_col2, nav_col3 = st.sidebar.columns([1, 1.4, 1])
+        
         def go_prev():
             if st.session_state.match_idx > 0:
                 st.session_state.match_idx -= 1
@@ -119,9 +128,10 @@ def main_page():
                 st.session_state.match_idx += 1
                 st.session_state.page_selector = (st.session_state.match_idx // ITEMS_PER_PAGE) + 1
 
-        nav_col1.button("⬆️ 上一个", on_click=go_prev)
-        nav_col3.button("⬇️ 下一个", on_click=go_next, args=(total_logs,))
-        nav_col2.markdown(f"<div style='text-align:center; padding-top:8px;'><b>{st.session_state.match_idx + 1} / {total_logs}</b></div>", unsafe_allow_html=True)
+        nav_col1.button("⬆️ 上一篇", on_click=go_prev)
+        nav_col3.button("⬇️ 下一篇", on_click=go_next, args=(total_logs,))
+        # 文案改得更明确，强调是“篇”
+        nav_col2.markdown(f"<div style='text-align:center; padding-top:8px; font-size:14px;'><b>第 {st.session_state.match_idx + 1} 篇 / 共 {total_logs} 篇</b></div>", unsafe_allow_html=True)
         st.sidebar.markdown("---")
 
     # 分页控制
@@ -156,7 +166,7 @@ def main_page():
                     "mood_sticker": mood_sticker 
                 }
                 supabase.table("research_logs").insert(new_data).execute()
-                st.success("🎉 提交成功！")
+                st.success(f"🎯 **当前定位目标** (正在查看第 {global_idx + 1} 篇包含该词的日志，共 {total_logs} 篇)")
                 st.rerun()
 
     # --- 右侧：高光历史日志墙 ---
