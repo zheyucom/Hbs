@@ -6,9 +6,7 @@ from datetime import datetime, timedelta
 import re
 import html
 import uuid
-import urllib.parse
-import urllib.request # 💡 新增：用于服务器端代抓取
-import base64         # 💡 新增：用于将图片转化为文本绕过屏蔽
+import urllib.parse # 仅保留用于修复手机端中文链接的轻量工具
 
 # --- 页面基础配置 ---
 st.set_page_config(page_title="我们的科研小空间", page_icon="🔬", layout="wide")
@@ -29,43 +27,6 @@ if 'match_idx' not in st.session_state: st.session_state.match_idx = 0
 if 'last_search' not in st.session_state: st.session_state.last_search = ""
 if 'page_selector' not in st.session_state: st.session_state.page_selector = 1
 ITEMS_PER_PAGE = 5
-
-# ==========================================
-# 💡 核心修复：服务器端图片代抓取与转换引擎
-# ==========================================
-@st.cache_data(show_spinner=False)
-import ssl # 确保在文件顶部有导入 ssl，如果没有请加在上方 import 区域
-
-@st.cache_data(show_spinner=False)
-def get_image_base64(url):
-    """
-    终极版：忽略 Mac SSL 校验，强制服务器代抓取。
-    """
-    try:
-        # 💡 核心修复：忽略 Mac 电脑常见的 SSL 证书不信任报错
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-
-        # 伪装成正规浏览器去请求图片
-        req = urllib.request.Request(url, headers={
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
-        })
-        with urllib.request.urlopen(req, timeout=10, context=ctx) as response:
-            b64 = base64.b64encode(response.read()).decode('utf-8')
-            mime = "image/jpeg"
-            if ".png" in url.lower(): mime = "image/png"
-            elif ".gif" in url.lower(): mime = "image/gif"
-            return f"data:{mime};base64,{b64}"
-            
-    except Exception as e:
-        # 💡 如果还是失败，把具体原因打印在 Mac 终端里，一目了然！
-        print(f"\n⚠️ 图片代抓取失败！")
-        print(f"尝试抓取的链接: {url}")
-        print(f"失败原因: {e}")
-        print("请检查你的 Mac 终端是否能连上外网，或者手机是否开启了全局 VPN。\n")
-        
-        return url # 兜底退回原链接
 
 def highlight_text(text, keyword):
     if not isinstance(text, str) or not text:
@@ -191,7 +152,6 @@ def main_page():
 
         col1, col2 = st.columns([1, 1.8])
 
-        # --- 左侧：新建日志 ---
         with col1:
             st.header("📝 写新日志")
             with st.form("new_log_form", clear_on_submit=True):
@@ -240,7 +200,6 @@ def main_page():
                     st.success("🎉 提交成功！")
                     st.rerun()
 
-        # --- 右侧：历史日志墙 ---
         with col2:
             st.header("🕰️ 历史日志墙")
             if filtered_df.empty:
@@ -283,27 +242,21 @@ def main_page():
                                 else:
                                     st.code(row['code_or_params'])
                         
-                        # ==========================================
-                        # 💡 核心修复：图片渲染区域，无视一切网络封锁
-                        # ==========================================
+                        # 💡 纯享云端版渲染逻辑：只做 URL 安全转码，抛弃所有臃肿请求
                         file_link = row.get('file_url', '')
                         if pd.notna(file_link) and file_link != "":
+                            # 保证手机浏览器能看懂带中文的文件链接
                             safe_file_link = urllib.parse.quote(file_link, safe=":/%?=&")
                             
                             if any(ext in file_link.lower() for ext in ['.png', '.jpg', '.jpeg', '.gif']):
-                                # 呼叫刚才写好的引擎，直接获取 Base64 数据
-                                img_base64_data = get_image_base64(safe_file_link)
-                                
-                                # 展示优美的缩略图（即使是在手机上也能极速秒开）
                                 st.markdown(f"""
                                     <div style="margin-top:10px; margin-bottom:5px;">
-                                        <img src="{img_base64_data}" loading="lazy" style="width: 250px; max-width:100%; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                                        <a href="{safe_file_link}" target="_blank" title="点击查看高清大图">
+                                            <img src="{safe_file_link}" loading="lazy" style="width: 250px; max-width:100%; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); cursor: zoom-in; transition: transform 0.2s;">
+                                        </a>
                                     </div>
+                                    <span style="color: gray; font-size: 13px;">👆 点击图片查看高清大图</span>
                                 """, unsafe_allow_html=True)
-                                
-                                # 点击展开大图，利用 Streamlit 手机端的全屏交互
-                                with st.expander("🔍 点击展开 / 放大高清图片"):
-                                    st.image(img_base64_data, use_container_width=True)
                             else:
                                 st.markdown(f"**[📎 点击这里下载 / 查看附件文献PDF]({safe_file_link})**")
                                 
